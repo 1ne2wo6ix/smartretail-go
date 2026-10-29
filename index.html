@@ -79,6 +79,12 @@ pre{background:#0f172a;color:#e2e8f0;border-radius:12px;padding:12px;font-size:1
 .spinner{width:56px;height:56px;border:6px solid #cbd5e1;border-top-color:var(--brand);border-radius:50%;animation:spin 1s linear infinite;margin:20px auto}
 @keyframes spin{to{transform:rotate(360deg)}}
 .hidden{display:none!important}
+.stepper{display:flex;align-items:center;border:2px solid var(--brand);border-radius:12px;overflow:hidden;flex:none}
+.stepper button{width:46px;height:46px;border:0;background:#fff;color:var(--brand);font-size:24px;font-weight:800}
+.stepper b{min-width:30px;text-align:center;font-size:18px}
+.value{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center}
+.value div{background:var(--ok-bg);border-radius:12px;padding:10px 4px;font-size:12px;color:#166534}
+.value b{display:block;font-size:20px;color:var(--ok)}
 .sheetbg{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:30;display:flex;align-items:flex-end;justify-content:center}
 .sheet{background:#fff;width:100%;max-width:440px;border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));max-height:85vh;overflow:auto}
 .sheet h2{margin:0 0 4px}
@@ -217,15 +223,17 @@ entry: () => `
 
 store: () => `
   <div class="row"><h1 class="grow">In store</h1><div class="live"><span class="dot"></span>Live Cart Sync</div></div>
-  <p class="lead">Take items from the shelf. In the real store, the shelf weight sensor and camera detect it; here, tap <b>Take</b>.</p>
+  <p class="lead">Take items from the shelf. In the real store, the shelf weight sensor and camera detect it; here, tap <b>Take</b>. Use <b>−</b> / <b>+</b> to change the amount.</p>
   <div class="card">${PRODUCTS.map(p=>`
     <div class="prod">
       <div class="emoji">${p.e}</div>
       <div class="grow"><b>${p.name}</b><div class="muted" style="font-size:13px">Shelf ${p.shelf} · ${p.weight} g</div><div class="price">${fmt(p.price)}</div></div>
-      <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
-        <button class="btn small" data-take="${p.id}" aria-label="Take ${p.name}">Take</button>
-        ${S.cart[p.id] ? `<button class="btn ghost small" data-ret="${p.id}" aria-label="Put back ${p.name}">Put back (${S.cart[p.id]})</button>` : ''}
-      </div>
+      ${S.cart[p.id]
+        ? `<div class="stepper" role="group" aria-label="${p.name} quantity">
+             <button data-ret="${p.id}" aria-label="Put back one ${p.name}">−</button>
+             <b aria-live="polite">${S.cart[p.id]}</b>
+             <button data-take="${p.id}" aria-label="Take one more ${p.name}">+</button></div>`
+        : `<button class="btn small" data-take="${p.id}" aria-label="Take ${p.name}">Take</button>`}
     </div>`).join('')}
   </div>`,
 
@@ -265,6 +273,11 @@ receipt: () => {
     <tr><td colspan="2"><b>Total</b></td><td style="text-align:right"><b>${fmt(r.total_amount)}</b></td></tr>
   </table>
   <div class="muted" style="font-size:13px;margin-top:8px">Paid from demo wallet · new balance ${fmt(S.wallet)} · status <span class="tag ok">PAID</span></div></div>
+  <div class="card"><div class="value">
+    <div><b>${r.minutes}</b>in store</div>
+    <div><b>0 min</b>in a queue</div>
+    <div><b>${r.lines.reduce((a,l)=>a+l.q,0)}/${r.lines.reduce((a,l)=>a+l.q,0)}</b>items confirmed by shelf sensors</div>
+  </div></div>
   <div class="card" style="text-align:center"><b>How was your visit?</b>
     <div class="stars" id="stars">${[1,2,3,4,5].map(i=>`<button data-star="${i}" class="${i<=S.rating?'on':''}" aria-label="${i} stars">★</button>`).join('')}</div>
     <button class="btn ghost small" id="dispute">Something is wrong – open a support ticket</button>
@@ -352,7 +365,7 @@ entry(){
     left--; if (left<=0){ left=30; draw(); }
     $('qrsec').textContent = left; $('qrbar').style.width = (left/30*100)+'%';
   },1000);
-  $('scanGate').onclick = ()=>{ tap(); toast('ok','Gate open – welcome!','session #'+S.sessionId+' · ACTIVE'); go('store'); };
+  $('scanGate').onclick = ()=>{ tap(); S.startedAt = Date.now(); toast('ok','Gate open – welcome!','session #'+S.sessionId+' · ACTIVE'); go('store'); };
 },
 store(){
   document.querySelectorAll('[data-take]').forEach(b=>b.onclick=()=>{
@@ -385,7 +398,9 @@ exit(){
   setTimeout(()=>{ $('exitMsg').textContent = 'Charging '+fmt(total)+' (BEGIN … COMMIT)'; }, 700);
   setTimeout(()=>{
     S.wallet -= total;
+    const sec = Math.max(1, Math.round((Date.now() - (S.startedAt || Date.now())) / 1000));
     S.receipt = {receipt_id: 6 + Math.floor(Math.random()*90), session_id:S.sessionId, total_amount: total, issued_at: now(),
+                 minutes: sec < 60 ? sec + ' s' : Math.floor(sec/60) + ' min ' + (sec%60) + ' s',
                  lines: cartLines().map(l=>({name:l.p.name, q:l.q, sum:l.p.price*l.q}))};
     if (T.on && T.cur){
       const c = T.cur; c.seconds = Math.round((Date.now()-c.start)/1000); c.success = true; c.items = cartCount();
@@ -445,7 +460,7 @@ $('sheetNo').onclick = ()=>{ tap(); $('sheet').classList.add('hidden'); };
       [[1,'PICK'],[3,'PICK'],[8,'PICK'],[8,'RETURN'],[1,'PICK']].forEach(([id,t])=>{ const p=PRODUCTS.find(x=>x.id===id); sensorEvent(p,t); S.cart[id]=(S.cart[id]||0)+(t==='PICK'?1:-1); });
       S.qr = newToken();
     }
-    if (h==='receipt'){ const tot=cartTotal(); S.wallet-=tot; S.receipt={receipt_id:14,session_id:412,total_amount:tot,issued_at:now(),lines:cartLines().map(l=>({name:l.p.name,q:l.q,sum:l.p.price*l.q}))}; S.rating=5; }
+    if (h==='receipt'){ const tot=cartTotal(); S.wallet-=tot; S.receipt={receipt_id:14,session_id:412,total_amount:tot,issued_at:now(),minutes:'1 min 12 s',lines:cartLines().map(l=>({name:l.p.name,q:l.q,sum:l.p.price*l.q}))}; S.rating=5; }
     if (h==='data') S.tickets.push({ticket_id:1,session_id:412,event_id:4,category:'WRONG_ITEM',status:'AUTO_RESOLVED',created_at:now()});
     S.screen = h;
   }
