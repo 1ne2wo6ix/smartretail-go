@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SmartRetail Go – prototype</title>
+<meta name="description" content="Interactive prototype of the Smart Retail checkout-free store app (Astana IT University, group IT-2611).">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{
+  --bg:#eef2f6; --card:#fff; --ink:#0f172a; --muted:#5b6475; --line:#dde3ea;
+  --brand:#0f766e; --brand-2:#14b8a6; --brand-ink:#fff;
+  --ok:#15803d; --ok-bg:#dcfce7; --bad:#b91c1c; --bad-bg:#fee2e2; --warn:#a16207; --warn-bg:#fef3c7;
+  --sim:#6d28d9; --sim-bg:#ede9fe;
+}
+*{box-sizing:border-box}
+html{scroll-padding-bottom:130px}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+button{font:inherit;cursor:pointer}
+.app{max-width:440px;min-height:100vh;margin:0 auto;background:var(--bg);display:flex;flex-direction:column}
+header{position:sticky;top:0;z-index:5;background:var(--brand);color:var(--brand-ink);padding:12px 16px;display:flex;align-items:center;gap:10px}
+header .logo{font-weight:800;letter-spacing:.2px;font-size:18px;flex:1}
+header .logo small{display:block;font-weight:500;font-size:12px;opacity:.85}
+.hbtn{background:rgba(255,255,255,.16);color:#fff;border:0;border-radius:10px;padding:8px 10px;font-size:13px;min-height:40px}
+.hbtn.on{background:#fbbf24;color:#111}
+.steps{display:flex;gap:4px;padding:10px 16px 0}
+.steps i{flex:1;height:5px;border-radius:3px;background:#cbd5e1}
+.steps i.done{background:var(--brand)}
+.steplabel{padding:4px 16px 0;font-size:12px;color:var(--muted)}
+main{flex:1;padding:12px 16px 110px}
+h1{font-size:24px;margin:8px 0 4px}
+h2{font-size:18px;margin:18px 0 8px}
+p.lead{color:var(--muted);margin:0 0 14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin:10px 0}
+.btn{display:block;width:100%;border:0;border-radius:14px;padding:15px;min-height:52px;font-weight:700;font-size:17px;background:var(--brand);color:#fff}
+.btn.ghost{background:#fff;color:var(--brand);border:2px solid var(--brand)}
+.btn.small{display:inline-block;width:auto;padding:8px 12px;min-height:40px;font-size:14px;border-radius:10px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.row{display:flex;align-items:center;gap:10px}
+.grow{flex:1}
+.muted{color:var(--muted)}
+.tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:999px;vertical-align:middle}
+.tag.sim{background:var(--sim-bg);color:var(--sim)}
+.tag.ok{background:var(--ok-bg);color:var(--ok)}
+.tag.bad{background:var(--bad-bg);color:var(--bad)}
+.tag.warn{background:var(--warn-bg);color:var(--warn)}
+.qrbox{display:flex;flex-direction:column;align-items:center;padding:18px}
+#qr{background:#fff;padding:12px;border-radius:12px;border:1px solid var(--line);min-height:224px;min-width:224px;display:flex;align-items:center;justify-content:center}
+.timer{height:6px;background:#e2e8f0;border-radius:3px;width:224px;margin-top:12px;overflow:hidden}
+.timer b{display:block;height:100%;background:var(--brand-2);transition:width 1s linear}
+.prod{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
+.prod:first-child{border-top:0}
+.emoji{width:46px;height:46px;border-radius:12px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;font-size:24px;flex:none}
+.price{font-weight:700}
+.live{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--ok)}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--ok);animation:pulse 1.4s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(21,128,61,.5)}100%{box-shadow:0 0 0 10px rgba(21,128,61,0)}}
+.total{font-size:30px;font-weight:800}
+.cartbar{position:fixed;left:0;right:0;bottom:0;z-index:6}
+.cartbar .in{max-width:440px;margin:0 auto;background:#0f172a;color:#fff;padding:12px 16px calc(12px + env(safe-area-inset-bottom));display:flex;align-items:center;gap:10px;border-radius:16px 16px 0 0}
+.cartbar .btn{width:auto;padding:12px 16px;min-height:48px;font-size:15px}
+.toast{position:fixed;left:50%;top:76px;transform:translateX(-50%);z-index:20;max-width:400px;width:calc(100% - 32px);border-radius:14px;padding:12px 14px;font-weight:600;box-shadow:0 8px 30px rgba(0,0,0,.18);display:none}
+.toast.ok{background:var(--ok-bg);color:var(--ok);border:1px solid #86efac}
+.toast.bad{background:var(--bad-bg);color:var(--bad);border:1px solid #fca5a5}
+.toast small{display:block;font-weight:500;color:#334155;margin-top:2px;font-family:ui-monospace,Menlo,monospace;font-size:12px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:6px 4px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:600}
+pre{background:#0f172a;color:#e2e8f0;border-radius:12px;padding:12px;font-size:12px;overflow:auto;white-space:pre-wrap;word-break:break-word}
+.gate{font-size:64px;text-align:center;margin:10px 0}
+.stars{display:flex;gap:8px;justify-content:center;margin:8px 0}
+.stars button{font-size:32px;background:none;border:0;min-width:48px;min-height:48px;color:#cbd5e1}
+.stars button.on{color:#f59e0b}
+.nav{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.nav button{background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:13px;min-height:40px}
+.banner{border-radius:12px;padding:10px 12px;font-size:13px;margin:8px 0}
+.banner.sim{background:var(--sim-bg);color:#4c1d95}
+.banner.warn{background:var(--warn-bg);color:#713f12}
+.spinner{width:56px;height:56px;border:6px solid #cbd5e1;border-top-color:var(--brand);border-radius:50%;animation:spin 1s linear infinite;margin:20px auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+.hidden{display:none!important}
+a{color:var(--brand)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo">SmartRetail Go<small id="hsub">Checkout-free store · prototype</small></div>
+    <button class="hbtn" id="btnData" aria-label="Show data layer">Data</button>
+    <button class="hbtn" id="btnTest" aria-label="Test mode">Test</button>
+  </header>
+  <div class="steps" id="steps" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+  <div class="steplabel" id="steplabel"></div>
+  <main id="main"></main>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="cartbar hidden" id="cartbar"><div class="in">
+  <div class="grow" style="white-space:nowrap"><div style="font-size:12px;opacity:.75">Live cart</div><div><b id="cbCount">0</b> items · <b id="cbTotal">0 ₸</b></div></div>
+  <button class="btn ghost small" id="cbCart" style="background:transparent;color:#fff;border-color:#fff">View cart</button>
+  <button class="btn small" id="cbExit">Walk out →</button>
+</div></div>
+
+<script>
+// ---------------------------------------------------------------
+// Demo data. Products, prices and weights match the Assignment 3
+// PostgreSQL seed data (table Products).
+// ---------------------------------------------------------------
+const PRODUCTS = [
+  {id:1, sku:'SKU-KZ-001', name:'Kazakhstan Chocolate', price:850,  weight:100,  shelf:'A1', e:'🍫'},
+  {id:2, sku:'SKU-KZ-002', name:'Tashkent Tea',         price:1200, weight:250,  shelf:'B2', e:'🍵'},
+  {id:3, sku:'SKU-KZ-003', name:'Aynalayn Milk',        price:650,  weight:1000, shelf:'C1', e:'🥛'},
+  {id:5, sku:'SKU-KZ-005', name:'Astana Water',         price:250,  weight:500,  shelf:'B1', e:'💧'},
+  {id:7, sku:'SKU-KZ-007', name:'Nauryz Bread',         price:300,  weight:400,  shelf:'D1', e:'🍞'},
+  {id:8, sku:'SKU-KZ-008', name:'Nomad Cheese',         price:3500, weight:300,  shelf:'C2', e:'🧀'},
+];
+const STORE = {id:1, name:'Astana IT University Store', address:'Mangilik El C1'};
+const STEP_NAMES = ['Start','Entry QR','Shop','Walk out','Receipt'];
+const fmt = n => n.toLocaleString('ru-RU') + ' ₸';
+const now = () => new Date().toISOString().replace('T',' ').slice(0,19);
+const $ = id => document.getElementById(id);
+
+function fresh(){
+  return {screen:'welcome', wallet:25000, sessionId:null, qr:null, cart:{}, events:[], tickets:[], receipt:null, rating:0,
+          nextEvent:1, nextTicket:1};
+}
+let S = fresh();
+let T = loadTests();   // test-mode log (kept in this browser only)
+let qrTimer = null;
+
+// ---------------- storage (per-browser, optional) ----------------
+function loadTests(){ try{ return JSON.parse(localStorage.getItem('srg_tests')||'{"on":false,"runs":[],"cur":null}'); }catch(e){ return {on:false,runs:[],cur:null}; } }
+function saveTests(){ try{ localStorage.setItem('srg_tests', JSON.stringify(T)); }catch(e){} }
+
+// ---------------- helpers ----------------
+function toast(kind, msg, sub){
+  const t = $('toast'); t.className = 'toast ' + kind;
+  t.innerHTML = msg + (sub ? '<small>'+sub+'</small>' : '');
+  t.style.display = 'block'; clearTimeout(t._h); t._h = setTimeout(()=>t.style.display='none', 2600);
+  if (navigator.vibrate) navigator.vibrate(kind==='ok' ? 40 : [40,60,40]);
+}
+function cartLines(){ return Object.entries(S.cart).filter(([,q])=>q>0).map(([id,q])=>({p:PRODUCTS.find(x=>x.id==id), q})); }
+function cartTotal(){ return cartLines().reduce((s,l)=>s+l.p.price*l.q,0); }
+function cartCount(){ return cartLines().reduce((s,l)=>s+l.q,0); }
+function tap(){ if (T.on && T.cur) { T.cur.taps++; saveTests(); } }
+function newToken(){ return 'qr_dyn_' + Math.random().toString(36).slice(2,10) + '_' + Date.now().toString(36); }
+
+// Simulated shelf weight sensor + camera fusion. Produces the same
+// record shape as the new PostgreSQL table Shelf_Sensor_Events.
+function sensorEvent(p, type){
+  const noise = Math.round((Math.random()*4-2)*10)/10;              // ±2 g scale noise
+  const delta = (type==='PICK' ? -p.weight : p.weight) + noise;
+  const conf  = Math.round((0.95 + Math.random()*0.049)*1000)/1000;  // fusion confidence
+  const ev = {event_id:S.nextEvent++, session_id:S.sessionId, store_id:STORE.id, product_id:p.id,
+    shelf_code:p.shelf, event_type:type, weight_delta_g:delta, match_confidence:conf,
+    raw_payload:{sensor:'loadcell-'+p.shelf, cam:'cv-cam-0'+(1+p.id%3), protocol:'MQTT'}, recorded_at:now()};
+  S.events.push(ev);
+  return ev;
+}
+
+// ---------------- rendering ----------------
+const SCREEN_STEP = {welcome:0, entry:1, store:2, cart:2, exit:3, receipt:4, data:-1, status:-1, test:-1};
+function setSteps(){
+  const k = SCREEN_STEP[S.screen];
+  $('steps').classList.toggle('hidden', k<0); $('steplabel').classList.toggle('hidden', k<0);
+  [...$('steps').children].forEach((el,i)=>el.classList.toggle('done', i<=k));
+  if (k>=0) $('steplabel').textContent = 'Step ' + (k+1) + ' of 5 · ' + STEP_NAMES[k];
+  const inStore = S.screen==='store' || S.screen==='cart';
+  $('cartbar').classList.toggle('hidden', !inStore);
+  $('cbCart').classList.toggle('hidden', S.screen==='cart');
+  $('cbCount').textContent = cartCount(); $('cbTotal').textContent = fmt(cartTotal());
+  $('btnTest').classList.toggle('on', T.on);
+}
+function go(screen){ S.screen = screen; render(); window.scrollTo(0,0); }
+
+function render(){
+  clearInterval(qrTimer);
+  const m = $('main');
+  const v = VIEWS[S.screen] || VIEWS.welcome;
+  m.innerHTML = v();
+  (BIND[S.screen]||(()=>{}))();
+  setSteps();
+}
+
+const VIEWS = {
+welcome: () => `
+  <h1>Shop without the queue</h1>
+  <p class="lead">Enter with a QR code, take what you need, and walk out. The app shows every item the shelf sensors register, so you always know what you will pay.</p>
+  <div class="card">
+    <div class="row"><div class="emoji">👤</div><div class="grow"><b>Demo shopper</b><div class="muted" style="font-size:14px">No login needed · demo wallet ${fmt(S.wallet)}</div></div><span class="tag sim">DEMO</span></div>
+  </div>
+  <div class="card">
+    <div class="row"><div class="emoji">🏪</div><div class="grow"><b>${STORE.name}</b><div class="muted" style="font-size:14px">${STORE.address}, Astana · open now</div></div></div>
+  </div>
+  <button class="btn" id="goEntry">Get my entry QR</button>
+  <div class="banner sim" style="margin-top:14px"><b>Prototype note.</b> Sensors, gates and payments are <b>simulated</b> in this browser. Nothing is charged and no personal data is collected. Tap <b>Data</b> to see what is stored.</div>
+  <div class="nav"><button id="goStatus">Functions & status</button><button id="goTestInfo">For testers</button></div>`,
+
+entry: () => `
+  <h1>Your entry QR</h1>
+  <p class="lead">Show this code at the turnstile. It changes every 30 seconds, so a screenshot cannot be reused.</p>
+  <div class="card qrbox">
+    <div id="qr" aria-label="Dynamic entry QR code"></div>
+    <div class="timer"><b id="qrbar" style="width:100%"></b></div>
+    <div class="muted" style="font-size:13px;margin-top:6px">Refreshes in <b id="qrsec">30</b> s · token <code id="qrtok"></code></div>
+  </div>
+  <button class="btn" id="scanGate">Scan at turnstile (simulate)</button>`,
+
+store: () => `
+  <div class="row"><h1 class="grow">In store</h1><div class="live"><span class="dot"></span>Live Cart Sync</div></div>
+  <p class="lead">Take items from the shelf. In the real store, the shelf weight sensor and camera detect it; here, tap <b>Take</b>.</p>
+  <div class="card">${PRODUCTS.map(p=>`
+    <div class="prod">
+      <div class="emoji">${p.e}</div>
+      <div class="grow"><b>${p.name}</b><div class="muted" style="font-size:13px">Shelf ${p.shelf} · ${p.weight} g</div><div class="price">${fmt(p.price)}</div></div>
+      <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+        <button class="btn small" data-take="${p.id}" aria-label="Take ${p.name}">Take</button>
+        ${S.cart[p.id] ? `<button class="btn ghost small" data-ret="${p.id}" aria-label="Put back ${p.name}">Put back (${S.cart[p.id]})</button>` : ''}
+      </div>
+    </div>`).join('')}
+  </div>`,
+
+cart: () => {
+  const lines = cartLines();
+  return `
+  <div class="row"><h1 class="grow">Live cart</h1><div class="live"><span class="dot"></span>Sync active</div></div>
+  <div class="card">
+    <div class="muted" style="font-size:13px">Current total</div>
+    <div class="total">${fmt(cartTotal())}</div>
+    <div class="muted" style="font-size:13px">Wallet after exit: ${fmt(S.wallet - cartTotal())}</div>
+  </div>
+  <div class="card">${lines.length ? lines.map(l=>{
+      const ev = [...S.events].reverse().find(e=>e.product_id===l.p.id && e.event_type==='PICK');
+      return `<div class="prod"><div class="emoji">${l.p.e}</div>
+        <div class="grow"><b>${l.p.name}</b> × ${l.q}<div class="muted" style="font-size:12px">Detected on shelf ${l.p.shelf}: ${ev?ev.weight_delta_g:''} g · match ${ev?Math.round(ev.match_confidence*100):''}%</div></div>
+        <div style="text-align:right"><div class="price">${fmt(l.p.price*l.q)}</div><button class="btn ghost small" data-wrong="${l.p.id}" style="margin-top:4px">Not mine</button></div></div>`;}).join('')
+    : '<p class="muted">Your cart is empty. Go back to the shelves and take an item.</p>'}
+  </div>
+  <button class="btn ghost" id="backStore">← Back to shelves</button>`;
+},
+
+exit: () => `
+  <h1>Walking out…</h1>
+  <p class="lead">The exit gate closes your session and charges your wallet in one database transaction.</p>
+  <div class="card" style="text-align:center"><div class="spinner"></div><div id="exitMsg">Closing session #${S.sessionId}…</div></div>`,
+
+receipt: () => {
+  const r = S.receipt;
+  return `
+  <div class="gate">✅</div>
+  <h1 style="text-align:center">Paid ${fmt(r.total_amount)}</h1>
+  <p class="lead" style="text-align:center">Receipt #${r.receipt_id} · ${r.issued_at}</p>
+  <div class="card"><table>
+    <tr><th>Item</th><th>Qty</th><th style="text-align:right">Sum</th></tr>
+    ${r.lines.map(l=>`<tr><td>${l.name}</td><td>${l.q}</td><td style="text-align:right">${fmt(l.sum)}</td></tr>`).join('')}
+    <tr><td colspan="2"><b>Total</b></td><td style="text-align:right"><b>${fmt(r.total_amount)}</b></td></tr>
+  </table>
+  <div class="muted" style="font-size:13px;margin-top:8px">Paid from demo wallet · new balance ${fmt(S.wallet)} · status <span class="tag ok">PAID</span></div></div>
+  <div class="card" style="text-align:center"><b>How was your visit?</b>
+    <div class="stars" id="stars">${[1,2,3,4,5].map(i=>`<button data-star="${i}" class="${i<=S.rating?'on':''}" aria-label="${i} stars">★</button>`).join('')}</div>
+    <button class="btn ghost small" id="dispute">Something is wrong – open a support ticket</button>
+  </div>
+  <button class="btn" id="again">Start again</button>`;
+},
+
+data: () => `
+  <h1>Data layer</h1>
+  <div class="banner sim"><b>Simulated in this browser.</b> The records below use the same tables and columns as our PostgreSQL database (Assignment 3 + the two new tables from Assignment 4). In production they are written by the edge server over MQTT → HTTPS.</div>
+  <h2>Shelf_Sensor_Events <span class="tag warn">NEW</span></h2>
+  ${S.events.length ? `<div class="card" style="overflow:auto"><table><tr><th>id</th><th>shelf</th><th>type</th><th>Δ g</th><th>conf.</th><th>time</th></tr>
+  ${S.events.slice(-8).reverse().map(e=>`<tr><td>${e.event_id}</td><td>${e.shelf_code}</td><td>${e.event_type}</td><td>${e.weight_delta_g}</td><td>${e.match_confidence}</td><td>${e.recorded_at.slice(11)}</td></tr>`).join('')}</table></div>
+  <div class="muted" style="font-size:13px">Last event as JSON:</div><pre>${JSON.stringify(S.events[S.events.length-1],null,2)}</pre>` : '<p class="muted">No sensor events yet. Enter the store and take an item.</p>'}
+  <h2>Shopping_Sessions</h2>
+  <div class="card">${S.sessionId ? `session_id <b>${S.sessionId}</b> · store_id ${STORE.id} · status <b>${S.receipt?'COMPLETED':'ACTIVE'}</b> · qr_token <code>${(S.qr||'').slice(0,18)}…</code>` : '<span class="muted">No session yet.</span>'}</div>
+  <h2>Cart_Items</h2>
+  <div class="card">${cartLines().length ? `<table><tr><th>product_id</th><th>name</th><th>qty</th></tr>${cartLines().map(l=>`<tr><td>${l.p.id}</td><td>${l.p.name}</td><td>${l.q}</td></tr>`).join('')}</table>` : '<span class="muted">Empty.</span>'}</div>
+  <h2>Receipts</h2>
+  <div class="card">${S.receipt ? `receipt_id ${S.receipt.receipt_id} · total ${S.receipt.total_amount} · PAID` : '<span class="muted">Created when you walk out.</span>'}</div>
+  <h2>Support_Tickets <span class="tag warn">NEW</span></h2>
+  <div class="card">${S.tickets.length ? `<table><tr><th>id</th><th>category</th><th>event</th><th>status</th></tr>${S.tickets.map(t=>`<tr><td>${t.ticket_id}</td><td>${t.category}</td><td>${t.event_id??'–'}</td><td>${t.status}</td></tr>`).join('')}</table>` : '<span class="muted">No tickets.</span>'}</div>
+  <button class="btn ghost" id="back">← Back</button>`,
+
+status: () => `
+  <h1>Functions & status</h1>
+  <p class="lead">What this prototype really does today.</p>
+  <div class="card"><table>
+    <tr><th>Function</th><th>Status</th></tr>
+    <tr><td>Dynamic entry QR (30 s refresh)</td><td><span class="tag ok">Done</span> in app; gate <span class="tag sim">simulated</span></td></tr>
+    <tr><td>Live cart from shelf sensor events</td><td><span class="tag warn">Partly</span> UI done, sensor events simulated</td></tr>
+    <tr><td>Return item / "Not mine" correction</td><td><span class="tag ok">Done</span> (simulated data)</td></tr>
+    <tr><td>Atomic exit payment + receipt</td><td><span class="tag warn">Partly</span> SQL transaction tested in PostgreSQL; app simulates it</td></tr>
+    <tr><td>Data view of stored records</td><td><span class="tag ok">Done</span></td></tr>
+    <tr><td>Rating and support ticket</td><td><span class="tag ok">Done</span> (stored in browser)</td></tr>
+    <tr><td>Real IoT shelf + camera hardware</td><td><span class="tag bad">Planned</span></td></tr>
+    <tr><td>Real payment (Kaspi / bank card)</td><td><span class="tag bad">Planned</span></td></tr>
+    <tr><td>Cloud backend (PostgreSQL on AWS RDS)</td><td><span class="tag bad">Planned</span></td></tr>
+  </table></div>
+  <button class="btn ghost" id="back">← Back</button>`,
+
+test: () => {
+  const runs = T.runs;
+  const ok = runs.filter(r=>r.success).length;
+  const avg = runs.length ? Math.round(runs.reduce((s,r)=>s+r.seconds,0)/runs.length) : 0;
+  return `
+  <h1>Test mode</h1>
+  <p class="lead">For the facilitator. Start a run, hand the phone to the tester and say: <i>“Enter the store, take two items, and leave with a receipt.”</i> The run stops automatically on the receipt screen.</p>
+  <div class="card">
+    <label class="row"><input type="checkbox" id="tOn" ${T.on?'checked':''} style="width:22px;height:22px"> <span>Test mode on</span></label>
+    <div class="row" style="margin-top:10px;gap:8px">
+      <input id="tName" placeholder="Tester code, e.g. T1" style="flex:1;padding:12px;border:1px solid var(--line);border-radius:10px;font:inherit">
+      <button class="btn small" id="tStart">Start run</button>
+    </div>
+    ${T.cur ? `<div class="banner warn">Run <b>${T.cur.tester}</b> in progress…</div>` : ''}
+  </div>
+  <div class="card">
+    <b>Results in this browser</b>
+    <div class="muted" style="font-size:13px">${runs.length} runs · success ${ok}/${runs.length} · average time ${avg} s</div>
+    ${runs.length ? `<table style="margin-top:8px"><tr><th>Tester</th><th>Done</th><th>Time</th><th>Taps</th><th>Fixes</th><th>★</th></tr>
+    ${runs.map(r=>`<tr><td>${r.tester}</td><td>${r.success?'yes':'no'}</td><td>${r.seconds}s</td><td>${r.taps}</td><td>${r.corrections}</td><td>${r.rating||'–'}</td></tr>`).join('')}</table>
+    <div class="row" style="margin-top:10px;gap:8px"><button class="btn small" id="tCsv">Download CSV</button><button class="btn ghost small" id="tFail">Mark last as failed</button><button class="btn ghost small" id="tClear">Clear</button></div>` : ''}
+  </div>
+  <button class="btn ghost" id="back">← Back</button>`;
+}
+};
+
+// ---------------- event bindings ----------------
+const BIND = {
+welcome(){
+  $('goEntry').onclick = ()=>{ tap(); S.sessionId = 100 + Math.floor(Math.random()*900); go('entry'); };
+  $('goStatus').onclick = ()=>go('status');
+  $('goTestInfo').onclick = ()=>go('test');
+},
+entry(){
+  let left = 30;
+  const draw = ()=>{
+    S.qr = newToken(); $('qrtok').textContent = S.qr.slice(0,14)+'…';
+    const box = $('qr'); box.innerHTML = '';
+    if (window.QRCode) new QRCode(box, {text:S.qr, width:200, height:200, correctLevel:QRCode.CorrectLevel.M});
+    else box.textContent = S.qr;
+  };
+  draw();
+  qrTimer = setInterval(()=>{
+    left--; if (left<=0){ left=30; draw(); }
+    $('qrsec').textContent = left; $('qrbar').style.width = (left/30*100)+'%';
+  },1000);
+  $('scanGate').onclick = ()=>{ tap(); toast('ok','Gate open – welcome!','session #'+S.sessionId+' · ACTIVE'); go('store'); };
+},
+store(){
+  document.querySelectorAll('[data-take]').forEach(b=>b.onclick=()=>{
+    tap(); const p = PRODUCTS.find(x=>x.id==b.dataset.take);
+    const ev = sensorEvent(p,'PICK'); S.cart[p.id]=(S.cart[p.id]||0)+1;
+    toast('ok','+ '+p.name+' added', 'shelf '+p.shelf+': '+ev.weight_delta_g+' g · match '+Math.round(ev.match_confidence*100)+'%');
+    render();
+  });
+  document.querySelectorAll('[data-ret]').forEach(b=>b.onclick=()=>{
+    tap(); const p = PRODUCTS.find(x=>x.id==b.dataset.ret);
+    const ev = sensorEvent(p,'RETURN'); S.cart[p.id]--;
+    if (T.on && T.cur) T.cur.corrections++;
+    toast('bad','− '+p.name+' returned', 'shelf '+p.shelf+': +'+ev.weight_delta_g+' g');
+    render();
+  });
+},
+cart(){
+  $('backStore').onclick = ()=>{ tap(); go('store'); };
+  document.querySelectorAll('[data-wrong]').forEach(b=>b.onclick=()=>{
+    tap(); const p = PRODUCTS.find(x=>x.id==b.dataset.wrong);
+    const ev = [...S.events].reverse().find(e=>e.product_id===p.id && e.event_type==='PICK');
+    S.cart[p.id]--; if (T.on && T.cur) T.cur.corrections++;
+    S.tickets.push({ticket_id:S.nextTicket++, session_id:S.sessionId, event_id:ev?ev.event_id:null, category:'WRONG_ITEM', status:'AUTO_RESOLVED', created_at:now()});
+    toast('bad','Removed '+p.name+' – ticket created','Support_Tickets: WRONG_ITEM → AUTO_RESOLVED');
+    render();
+  });
+},
+exit(){
+  const total = cartTotal();
+  setTimeout(()=>{ $('exitMsg').textContent = 'Charging '+fmt(total)+' (BEGIN … COMMIT)'; }, 700);
+  setTimeout(()=>{
+    S.wallet -= total;
+    S.receipt = {receipt_id: 6 + Math.floor(Math.random()*90), session_id:S.sessionId, total_amount: total, issued_at: now(),
+                 lines: cartLines().map(l=>({name:l.p.name, q:l.q, sum:l.p.price*l.q}))};
+    if (T.on && T.cur){
+      const c = T.cur; c.seconds = Math.round((Date.now()-c.start)/1000); c.success = true; c.items = cartCount();
+      T.runs.push(c); T.cur = null; saveTests();
+    }
+    go('receipt');
+  }, 1800);
+},
+receipt(){
+  document.querySelectorAll('[data-star]').forEach(b=>b.onclick=()=>{
+    S.rating = +b.dataset.star;
+    if (T.runs.length && T.on) { T.runs[T.runs.length-1].rating = S.rating; saveTests(); }
+    render();
+  });
+  $('dispute').onclick = ()=>{
+    S.tickets.push({ticket_id:S.nextTicket++, session_id:S.sessionId, event_id:null, category:'BILLING', status:'OPEN', created_at:now()});
+    toast('ok','Support ticket #'+(S.nextTicket-1)+' opened','A store manager will answer in the app');
+  };
+  $('again').onclick = ()=>{ const keep = S.events.length; S = fresh(); go('welcome'); };
+},
+data(){ $('back').onclick = ()=>go(S._prev||'welcome'); },
+status(){ $('back').onclick = ()=>go('welcome'); },
+test(){
+  $('back').onclick = ()=>go(S._prev||'welcome');
+  $('tOn').onchange = e=>{ T.on = e.target.checked; saveTests(); render(); };
+  $('tStart').onclick = ()=>{
+    T.on = true; const name = $('tName').value.trim() || ('T'+(T.runs.length+1));
+    T.cur = {tester:name, start:Date.now(), taps:0, corrections:0, success:false, seconds:0, rating:0};
+    saveTests(); S = fresh(); go('welcome');
+  };
+  const csv = $('tCsv'); if (csv) csv.onclick = ()=>{
+    const rows = [['tester','success','seconds','taps','corrections','items','rating']].concat(T.runs.map(r=>[r.tester,r.success?1:0,r.seconds,r.taps,r.corrections,r.items||'',r.rating||'']));
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([rows.map(r=>r.join(',')).join('\n')],{type:'text/csv'}));
+    a.download = 'smartretail_test_results.csv'; a.click();
+  };
+  const f = $('tFail'); if (f) f.onclick = ()=>{ T.runs[T.runs.length-1].success = false; saveTests(); render(); };
+  const c = $('tClear'); if (c) c.onclick = ()=>{ if (confirm('Delete all test results in this browser?')){ T.runs=[]; T.cur=null; saveTests(); render(); } };
+}
+};
+
+$('btnData').onclick = ()=>{ if (S.screen!=='data'){ S._prev = S.screen; go('data'); } else go(S._prev||'welcome'); };
+$('btnTest').onclick = ()=>{ if (S.screen!=='test'){ S._prev = S.screen; go('test'); } else go(S._prev||'welcome'); };
+$('cbCart').onclick = ()=>{ tap(); go('cart'); };
+$('cbExit').onclick = ()=>{ tap(); if (!cartCount()){ toast('bad','Your cart is empty','Take at least one item first'); return; } go('exit'); };
+
+// Deep links for screenshots, e.g. index.html#cart  (fills a demo cart)
+(function(){
+  const h = location.hash.slice(1);
+  if (h && VIEWS[h]){
+    if (['store','cart','exit','receipt','data'].includes(h)){
+      S.sessionId = 412;
+      [[1,'PICK'],[3,'PICK'],[8,'PICK'],[8,'RETURN'],[1,'PICK']].forEach(([id,t])=>{ const p=PRODUCTS.find(x=>x.id===id); sensorEvent(p,t); S.cart[id]=(S.cart[id]||0)+(t==='PICK'?1:-1); });
+      S.qr = newToken();
+    }
+    if (h==='receipt'){ const tot=cartTotal(); S.wallet-=tot; S.receipt={receipt_id:14,session_id:412,total_amount:tot,issued_at:now(),lines:cartLines().map(l=>({name:l.p.name,q:l.q,sum:l.p.price*l.q}))}; S.rating=5; }
+    if (h==='data') S.tickets.push({ticket_id:1,session_id:412,event_id:4,category:'WRONG_ITEM',status:'AUTO_RESOLVED',created_at:now()});
+    S.screen = h;
+  }
+  render();
+})();
+</script>
+</body>
+</html>
